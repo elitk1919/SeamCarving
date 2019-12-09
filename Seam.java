@@ -229,7 +229,6 @@ class Seam {
                         int red = im.getRed(x, j + 1);
                         int green = im.getGreen(x, j + 1);
                         int blue = im.getBlue(x, j + 1);
-                        im.setRGB(x, j, red, green, blue);
                     }
                 }
             }
