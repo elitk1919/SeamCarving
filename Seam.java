@@ -3,8 +3,7 @@ import java.util.concurrent.TimeUnit;
 
 class Seam {
 
-    private boolean showingSeam;
-    private UWECImage backup; 
+    private int delay;
 
     private int getVerticalEnergy(UWECImage im, int x, int y) {
         int height = im.getHeight();
@@ -16,7 +15,6 @@ class Seam {
         int downBlue = im.getBlue(x, (y - 1) % height);
         int retval = (int) Math.pow(upRed - downRed, 2) + (int) Math.pow(upGreen - downGreen, 2)
                 + (int) Math.pow(upBlue - downBlue, 2);
-        //System.out.println("VEnerge: " + retval);
         return retval;
     }
 
@@ -31,7 +29,6 @@ class Seam {
         int retval = (int) Math.pow(rightRed - leftRed, 2) + 
             (int) Math.pow(rightGreen - leftGreen, 2) + 
             (int) Math.pow(rightBlue - leftBlue, 2);
-        //System.out.println("HEnerge: " + retval);
         return retval;
 
     }
@@ -50,7 +47,6 @@ class Seam {
         int width = im.getWidth();
         int x = child.getX();
         int y = child.getY();
-        //System.out.println("X:" + x + " Y: " + y);
         if (y == 0)
             return null;
         int start;
@@ -80,7 +76,6 @@ class Seam {
         int height = im.getHeight();
         int x = child.getX();
         int y = child.getY();
-        System.out.println("X:" + x + " Y: " + y);
         if (x == 0)
             return null;
         int start;
@@ -101,7 +96,6 @@ class Seam {
                 currentMinIndex = i;
             }
         }
-        System.out.println("returning " + (y-1) + " " + currentMinIndex);
         return new Pair<Integer>(x - 1, currentMinIndex);
 
     }
@@ -109,7 +103,6 @@ class Seam {
     private int[][] getWeights(UWECImage im) {
         int height = im.getHeight();
         int width = im.getWidth();
-        System.out.println("Recalculationg seam");
         int[][] weights = new int[height][width];
         for (int i = 0; i < height; i++) {
             for (int j = 0; j < width; j++) {
@@ -117,6 +110,10 @@ class Seam {
             }
         }
         return weights;
+    }
+
+    public void setDelay(int d) {
+        delay = d;
     }
 
     public void verticalSeamShrink(UWECImage im) {
@@ -153,34 +150,39 @@ class Seam {
                 im.setRGB(p.getX(), p.getY(), 255, 0, 0);
         im.repaintCurrentDisplayWindow();
         try {
-            Thread.sleep(50);
+            Thread.sleep(delay);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+        UWECImage temp = new UWECImage(width - 1, height);
         for (Pair<Integer> p : seam) {
             if (p != null) {
                 int y = p.getY();
                 int x = p.getX();
-                for (int j = x; j < width - 1; j++) {
-                    int red = im.getRed(j + 1, y);
-                    int green = im.getGreen(j + 1, y);
-                    int blue = im.getBlue(j + 1, y);
-                    im.setRGB(j, y, red, green, blue);
+                for (int j = 0; j < width - 1; j++) {
+                    int red, blue, green;
+                    if (j >= x) {
+                        red = im.getRed(j + 1, y);
+                        green = im.getGreen(j + 1, y);
+                        blue = im.getBlue(j + 1, y);
+                    } else {
+                        red = im.getRed(j, y);
+                        green = im.getGreen(j, y);
+                        blue = im.getBlue(j, y);
+                    }
+                    temp.setRGB(j, y, red, green, blue);
                 }
             }
         }
-        
+        im.switchImage(temp);
     }
 
     public void horizontalSeamShrink(UWECImage im) {
         int height = im.getHeight();
         int width = im.getWidth();
-        System.out.println("image height: " + height + " image width: " + width);
         int[][] weights = getWeights(im);
         for (int j = 1; j < width; j++) {
-            //System.out.println("J: " + j);
             for (int i = 0; i < height; i++) {
-                //System.out.println("\tI: " + i);
                 if (i == 0) {
                     weights[i][j] += getMin(weights[i][j - 1], weights[i + 1][j - 1]);
                 } else if (i == height - 1) {
@@ -200,39 +202,40 @@ class Seam {
         seam.add(starter);
         int i = width - 1;
         Pair<Integer> next = starter;
-        System.out.println("In while loop");
         while (next != null) {
             next = getHorizontalMinPair(next, im, weights);
             seam.add(next);
             i--;
         }
-        System.out.println("Out of while loop");
-        System.out.println("In for loop");
+
         for (Pair<Integer> p : seam)
-            if (p != null)
-                im.setRGB(p.getX(), p.getY(), 255, 0, 0);
+            if (p != null) im.setRGB(p.getX(), p.getY(), 255, 0, 0);
         im.repaintCurrentDisplayWindow();
-        System.out.println("Out of for loop");
         try {
-            Thread.sleep(50);
+            Thread.sleep(delay);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+        UWECImage temp = new UWECImage(width, height - 1);
         for (Pair<Integer> p : seam) {
             if (p != null) {
                 int y = p.getY();
                 int x = p.getX();
-                for (int j = y; j < height - 1; j++) {
-                    if (j == height - 2) {
-                        im.setRGB(x, j, 0, 0, 0);
-                    } else { 
-                        int red = im.getRed(x, j + 1);
-                        int green = im.getGreen(x, j + 1);
-                        int blue = im.getBlue(x, j + 1);
+                for (int j = 0; j < height - 1; j++) {
+                    int red, blue, green;
+                    if (j >= y) {
+                        red = im.getRed(x, j + 1);
+                        green = im.getGreen(x, j + 1);
+                        blue = im.getBlue(x, j + 1);
+                    } else {
+                        red = im.getRed(x, j);
+                        green = im.getGreen(x, j);
+                        blue = im.getBlue(x, j);
                     }
+                    temp.setRGB(x, j, red, green, blue);
                 }
             }
         }
-
+        im.switchImage(temp);
     }
 }
